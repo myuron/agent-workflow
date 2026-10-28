@@ -11,11 +11,11 @@
 | research | 調査をする |
 | plan | 計画をする |
 | plan-approve | 計画をすり合わせて承認する |
-| test | テストを書く |
+| test-write | テストを書く |
 | implement | 実装する |
 | verify | 検証する |
 | implement-review | 実装をレビューする |
-| implement-approve | 実装を人がレビューする |
+| implement-approve | ヒューマンレビューをする |
 | commit | commitの下準備をする |
 | pr | PRの下準備をする |
 
@@ -53,15 +53,17 @@
 flowchart TD
     research["1. 調査する<br/>research"] --> plan["2. 計画する<br/>plan"]
     plan --> plan_approve["3. 計画の承認<br/>plan-approve"]
-    plan_approve --> test["4. テストを書く<br/>test"]
+    plan_approve --> test["4. テストを書く<br/>test-write"]
     test --> implement["5. 実装する<br/>implement"]
     implement --> verify["6. 検証する<br/>verify"]
+    implement -->|テストの誤り| test
+    implement -->|設計のずれ| plan
     verify -->|成功| ai_review["7. AIレビュー<br/>implement-review"]
     verify -->|実装のバグ| implement
     verify -->|テストの誤り| test
     verify -->|計画の誤り| plan
-    ai_review -->|mustの修正後に再検証| verify
-    ai_review -->|テストの誤り・不足| test
+    ai_review -->|mustの修正| implement
+    ai_review -->|テストの誤り・不足<br/>人に確認| test
     ai_review -->|mustが0| human_review["8. ヒューマンレビュー<br/>implement-approve"]
     human_review -->|小さな修正| implement
     human_review -->|設計に関わる修正| plan
@@ -73,6 +75,7 @@ flowchart TD
 ```
 
 太枠のステップは人が判断・操作を行う。
+スキルをまたぐ差し戻しは、メインが原因と戻り先を提案し、人が該当するスキルを起動する。
 
 1. 調査する
 
@@ -95,9 +98,11 @@ flowchart TD
      - plannerが調査結果をもとに `plan.md` を作成する
        - 完了条件はテストケースとして書く
        - 検証方法（テスト・lint・型チェック・ビルドの実行方法）を書く
+       - 「承認済み決定事項」は変更しない
      - plannerから質問が返ってきた場合、メインが人に確認し、回答を同じplannerに渡して計画を再開させる
      - plan-reviewerが `plan.md` をレビューし、指摘を must / should / nit に分類する
      - mustの指摘が0になるまで、plannerの修正とplan-reviewerのレビューを繰り返す
+       - 往復は最大5回まで。超えた場合は残りの指摘を人に渡す
 
 3. 計画の承認
 
@@ -106,16 +111,19 @@ flowchart TD
    - OUTPUT: `work/plan.md`
    - 概要:
      - メインが前提・未確定事項・shouldの指摘・設計上の判断ポイントについて、人に1問ずつ確認する
-     - 確認の結果を `plan.md` に反映する
+     - メインがテストケースの一覧を示し、人に確認する
+     - 確認の結果を `plan.md` の「承認済み決定事項」に記録する
 
 4. テストを書く
 
-   - EntryPoint: test
+   - EntryPoint: test-write
    - INPUT: `work/plan.md`
-   - OUTPUT: テストコード
+   - OUTPUT: テストコード、`work/test-write.md`
    - 概要:
      - test-writerが `plan.md` のテストケースからテストを書く
-     - すべてのテストが想定どおりの理由で失敗することを確認する
+     - 追加・変更したテストが想定どおりの理由で失敗することを確認する
+     - テストファイルの一覧、テストケースとの対応、想定した失敗理由を `test-write.md` に記録する
+     - メインがテストファイルを `git add` し、テストコードの基準点とする
 
 5. 実装する
 
@@ -126,7 +134,7 @@ flowchart TD
      - implementerがテストを1件ずつ Green → Refactor で通す
      - 計画からの小さなずれは、理由とともに `implement.md` に記録して続行する
      - 設計や方針が変わるずれや、テスト自体の誤りに気づいた場合は、作業を止めてメインに質問を返す
-     - メインがテストコードに変更がないことを確認する
+     - メインが `git diff` でテストコードが基準点から変更されていないことを確認する
 
 6. 検証する
 
@@ -137,24 +145,27 @@ flowchart TD
      - verifierが `plan.md` の検証方法に従い、テスト全体・lint・型チェック・ビルドを実行する
      - verifierが `plan.md` のテストケースがすべて実装され、通っていることを確認する
      - verifierはコードを修正せず、結果の要約を返す
-     - 失敗した場合、メインが原因に応じて実装・テスト・計画のいずれかに戻る
+     - 検証した時点の差分のハッシュを `verify.md` に記録する
+     - 失敗した場合、メインが原因に応じて実装・テスト・計画のいずれかへの戻りを提案する
      - AIで確認できない完了条件は、ヒューマンレビューでの確認事項として記録する
 
 7. AIレビュー
 
    - EntryPoint: implement-review
-   - INPUT: `work/issue.md`、`work/plan.md`、`work/implement.md`、差分
+   - INPUT: `work/issue.md`、`work/plan.md`、`work/test-write.md`、`work/implement.md`、差分
    - OUTPUT: `work/implement-review.md`
    - 概要:
      - implement-reviewerが差分をレビューし、指摘を must / should / nit に分類する
-     - mustの指摘はimplementerが修正し、verifierが再検証したうえで再レビューする
+     - mustの指摘はimplementerが修正し、メインがテストコードが基準点から変更されていないことを確認する
+     - verifierが再検証したうえで再レビューする
      - mustの指摘が0になるまで繰り返す
+       - 往復は最大5回まで。超えた場合は残りの指摘を人に渡す
      - テストの誤りや不足に関する指摘は、人に確認したうえで 4. テストを書く に戻る
 
 8. ヒューマンレビュー
 
    - EntryPoint: implement-approve
-   - INPUT: 差分、`work/plan.md`、`work/implement.md`、`work/implement-review.md`、`work/verify.md`
+   - INPUT: 差分、`work/plan.md`、`work/test-write.md`、`work/implement.md`、`work/implement-review.md`、`work/verify.md`
    - 概要:
      - メインが手動で確認すべき事項を示す
      - メインが1ファイルずつ変更を説明し、人の質問が終わってから次のファイルに進む
@@ -162,20 +173,22 @@ flowchart TD
        - 変更理由は `plan.md` または `implement.md` を根拠とし、根拠がなければ計画外の変更として明示する
        - そのファイルに関するshouldの指摘と計画からのずれは、説明の中で人に確認する
      - 修正が必要な場合、小さな修正は 5. 実装する に、設計に関わる修正は 2. 計画する に戻る
+     - 修正後に再びヒューマンレビューを行う場合は、前回のヒューマンレビュー以降の差分だけを説明する
 
 9. commitをする
 
    - EntryPoint: commit
-   - INPUT: 差分、`work/issue.md`、`work/plan.md`
+   - INPUT: 差分、`work/issue.md`、`work/plan.md`、`work/verify.md`
    - 概要:
      - メインがcommitの分け方と、各commitのメッセージ案を示す
-     - メインが `work/` がcommit対象に含まれていないこと、最後の修正後に検証を通過していることを確認する
+     - メインが `work/` がcommit対象に含まれていないことを確認する
+     - メインが `verify.md` の差分のハッシュと現在の差分のハッシュを照合し、最後の修正後に検証を通過していることを確認する
      - 人がcommitする
 
 10. PRをする
 
    - EntryPoint: pr
-   - INPUT: `work/issue.md`、`work/plan.md`、`work/implement.md`、`work/implement-review.md`、`work/verify.md`
+   - INPUT: commit履歴、`work/issue.md`、`work/plan.md`、`work/implement.md`、`work/implement-review.md`、`work/verify.md`
    - OUTPUT: `work/pr.md`
    - 概要:
      - メインがPRのタイトルと本文の案を `pr.md` に書く
