@@ -76,10 +76,10 @@ flowchart TD
 
 1. 調査する
 
-   EntryPoint: research
-   INPUT: issue番号
-   OUTPUT: `work/issue.md`、`work/research.md`
-   概要:
+   - EntryPoint: research
+   - INPUT: issue番号
+   - OUTPUT: `work/issue.md`、`work/research.md`
+   - 概要:
      - メインがghでissueを取得し、`work/issue.md` に保存する
      - メインが標準の調査観点からタスクに必要なものを選び、不足があれば追加する
      - 観点ごとにresearcherを並列で起動する
@@ -88,10 +88,10 @@ flowchart TD
 
 2. 計画する
 
-   EntryPoint: plan
-   INPUT: `work/issue.md`、`work/research.md`
-   OUTPUT: `work/plan.md`、`work/plan-review.md`
-   概要:
+   - EntryPoint: plan
+   - INPUT: `work/issue.md`、`work/research.md`
+   - OUTPUT: `work/plan.md`、`work/plan-review.md`
+   - 概要:
      - plannerが調査結果をもとに `plan.md` を作成する
        - 完了条件はテストケースとして書く
        - 検証方法（テスト・lint・型チェック・ビルドの実行方法）を書く
@@ -101,28 +101,28 @@ flowchart TD
 
 3. 計画の承認
 
-   EntryPoint: plan-approve
-   INPUT: `work/plan.md`、`work/plan-review.md`
-   OUTPUT: `work/plan.md`
-   概要:
+   - EntryPoint: plan-approve
+   - INPUT: `work/plan.md`、`work/plan-review.md`
+   - OUTPUT: `work/plan.md`
+   - 概要:
      - メインが前提・未確定事項・shouldの指摘・設計上の判断ポイントについて、人に1問ずつ確認する
      - 確認の結果を `plan.md` に反映する
 
 4. テストを書く
 
-   EntryPoint: test
-   INPUT: `work/plan.md`
-   OUTPUT: テストコード
-   概要:
+   - EntryPoint: test
+   - INPUT: `work/plan.md`
+   - OUTPUT: テストコード
+   - 概要:
      - test-writerが `plan.md` のテストケースからテストを書く
      - すべてのテストが想定どおりの理由で失敗することを確認する
 
 5. 実装する
 
-   EntryPoint: implement
-   INPUT: `work/plan.md`、テストコード
-   OUTPUT: コードの変更、`work/implement.md`
-   概要:
+   - EntryPoint: implement
+   - INPUT: `work/plan.md`、テストコード
+   - OUTPUT: コードの変更、`work/implement.md`
+   - 概要:
      - implementerがテストを1件ずつ Green → Refactor で通す
      - 計画からの小さなずれは、理由とともに `implement.md` に記録して続行する
      - 設計や方針が変わるずれや、テスト自体の誤りに気づいた場合は、作業を止めてメインに質問を返す
@@ -130,10 +130,10 @@ flowchart TD
 
 6. 検証する
 
-   EntryPoint: verify
-   INPUT: `work/plan.md`
-   OUTPUT: `work/verify.md`
-   概要:
+   - EntryPoint: verify
+   - INPUT: `work/plan.md`
+   - OUTPUT: `work/verify.md`
+   - 概要:
      - verifierが `plan.md` の検証方法に従い、テスト全体・lint・型チェック・ビルドを実行する
      - verifierが `plan.md` のテストケースがすべて実装され、通っていることを確認する
      - verifierはコードを修正せず、結果の要約を返す
@@ -142,10 +142,10 @@ flowchart TD
 
 7. AIレビュー
 
-   EntryPoint: implement-review
-   INPUT: `work/issue.md`、`work/plan.md`、`work/implement.md`、差分
-   OUTPUT: `work/implement-review.md`
-   概要:
+   - EntryPoint: implement-review
+   - INPUT: `work/issue.md`、`work/plan.md`、`work/implement.md`、差分
+   - OUTPUT: `work/implement-review.md`
+   - 概要:
      - implement-reviewerが差分をレビューし、指摘を must / should / nit に分類する
      - mustの指摘はimplementerが修正し、verifierが再検証したうえで再レビューする
      - mustの指摘が0になるまで繰り返す
@@ -153,9 +153,9 @@ flowchart TD
 
 8. ヒューマンレビュー
 
-   EntryPoint: implement-approve
-   INPUT: 差分、`work/plan.md`、`work/implement.md`、`work/implement-review.md`、`work/verify.md`
-   概要:
+   - EntryPoint: implement-approve
+   - INPUT: 差分、`work/plan.md`、`work/implement.md`、`work/implement-review.md`、`work/verify.md`
+   - 概要:
      - メインが手動で確認すべき事項を示す
      - メインが1ファイルずつ変更を説明し、人の質問が終わってから次のファイルに進む
        - 変更箇所（ファイル名と行番号）、変更前後の違い、変更理由を示す
@@ -165,19 +165,19 @@ flowchart TD
 
 9. commitをする
 
-   EntryPoint: commit
-   INPUT: 差分、`work/issue.md`、`work/plan.md`
-   概要:
+   - EntryPoint: commit
+   - INPUT: 差分、`work/issue.md`、`work/plan.md`
+   - 概要:
      - メインがcommitの分け方と、各commitのメッセージ案を示す
      - メインが `work/` がcommit対象に含まれていないこと、最後の修正後に検証を通過していることを確認する
      - 人がcommitする
 
 10. PRをする
 
-   EntryPoint: pr
-   INPUT: `work/issue.md`、`work/plan.md`、`work/implement.md`、`work/implement-review.md`、`work/verify.md`
-   OUTPUT: `work/pr.md`
-   概要:
+   - EntryPoint: pr
+   - INPUT: `work/issue.md`、`work/plan.md`、`work/implement.md`、`work/implement-review.md`、`work/verify.md`
+   - OUTPUT: `work/pr.md`
+   - 概要:
      - メインがPRのタイトルと本文の案を `pr.md` に書く
        - リポジトリにPRテンプレートがあれば、その形式に従う
      - 人がpushし、`pr.md` を確認・修正してPRを作成する
